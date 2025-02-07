@@ -20,11 +20,11 @@ class PositionalEmbedding(nn.Module):
         pe = pe.unsqueeze(0)
         self.register_buffer('pe', pe)
 
-    def forward(self, x):
+    def forward(self, x):tao
         return self.pe[:, :x.size(1)]
 
 class TokenEmbedding(nn.Module):
-    def __init__(self, c_in, d_model, tao=1, m=0, pad=True, is_split=False):
+    def __init__(self, c_in, d_model, tao=24, m=7, pad=True, is_split=False):
         super(TokenEmbedding, self).__init__()
         self.tao = tao
         self.m = m
@@ -193,14 +193,14 @@ class DataEmbedding(nn.Module):
     def __init__(self, c_in, d_model, embed_type='fixed', freq='h', dropout=0.1):
         super(DataEmbedding, self).__init__()
 
-        self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model, m=0, tao=1)
+        self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model, m=7, tao=24)
         self.position_embedding = PositionalEmbedding(d_model=d_model)
         self.temporal_embedding = TemporalEmbedding(d_model=d_model, embed_type=embed_type, freq=freq) if embed_type!='timeF' else TimeFeatureEmbedding(d_model=d_model, embed_type=embed_type, freq=freq)
         print('Hey_this_is_our_code_zhou_forked', flush=True)
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, x, x_mark):
-        print('zhou dataembedding x', x.shape)
+        #print('zhou dataembedding x', x.shape)
         x = self.value_embedding(x) + self.position_embedding(x) + self.temporal_embedding(x_mark)
         
         return self.dropout(x)
