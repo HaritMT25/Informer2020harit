@@ -122,77 +122,75 @@ class Exp_Informer(Exp_Basic):
         self.model.train()
         return total_loss
 
-def train(self, setting):
-    train_data, train_loader = self._get_data(flag='train')
-    vali_data, vali_loader = self._get_data(flag='val')
-    test_data, test_loader = self._get_data(flag='test')
-    path = os.path.join(self.args.checkpoints, setting)
-    if not os.path.exists(path):
-        os.makedirs(path)
-    time_now = time.time()
-    train_steps = len(train_loader)
-    early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
-    model_optim = self._select_optimizer()
-    criterion = self._select_criterion()
+    def train(self, setting):
+        train_data, train_loader = self._get_data(flag = 'train')
+        vali_data, vali_loader = self._get_data(flag = 'val')
+        test_data, test_loader = self._get_data(flag = 'test')
 
-    # Initialize lists to store epoch losses for plotting.
-    all_train_losses = []
-    all_vali_losses = []
+        path = os.path.join(self.args.checkpoints, setting)
+        if not os.path.exists(path):
+            os.makedirs(path)
 
-    if self.args.use_amp:
-        scaler = torch.cuda.amp.GradScaler()
-    
-    for epoch in range(self.args.train_epochs):
-        iter_count = 0
-        epoch_train_losses = []
-        self.model.train()
-        epoch_time = time.time()
+        time_now = time.time()
         
-        for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
-            iter_count += 1
-            model_optim.zero_grad()
-            pred, true = self._process_one_batch(
-                train_data, batch_x, batch_y, batch_x_mark, batch_y_mark)
-            loss = criterion(pred, true)
-            epoch_train_losses.append(loss.item())
-            
-            if (i + 1) % 100 == 0:
-                print("\t iters: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
-                speed = (time.time() - time_now) / iter_count
-                left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
-                print('\t speed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
-                iter_count = 0
-                time_now = time.time()
-            
-            if self.args.use_amp:
-                scaler.scale(loss).backward()
-                scaler.step(model_optim)
-                scaler.update()
-            else:
-                loss.backward()
-                model_optim.step()
-
-        print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
-        train_loss_epoch = np.average(epoch_train_losses)
-        vali_loss_epoch = self.vali(vali_data, vali_loader, criterion)
-        test_loss = self.vali(test_data, test_loader, criterion)
-        print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f}".format(
-            epoch + 1, train_steps, train_loss_epoch, vali_loss_epoch, test_loss))
+        train_steps = len(train_loader)
+        early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
         
-        # Store the epoch losses for plotting.
-        all_train_losses.append(train_loss_epoch)
-        all_vali_losses.append(vali_loss_epoch)
+        model_optim = self._select_optimizer()
+        criterion =  self._select_criterion()
 
-        early_stopping(vali_loss_epoch, self.model, path)
-        if early_stopping.early_stop:
-            print("Early stopping")
-            break
-        adjust_learning_rate(model_optim, epoch + 1, self.args)
+        if self.args.use_amp:
+            scaler = torch.cuda.amp.GradScaler()
 
-    best_model_path = os.path.join(path, 'checkpoint.pth')
-    self.model.load_state_dict(torch.load(best_model_path))
-    # Return the losses (the model is also updated in self.model)
-    return all_train_losses, all_vali_losses
+        for epoch in range(self.args.train_epochs):
+            iter_count = 0
+            train_loss = []
+            
+            self.model.train()
+            epoch_time = time.time()
+            for i, (batch_x,batch_y,batch_x_mark,batch_y_mark) in enumerate(train_loader):
+                iter_count += 1
+                
+                model_optim.zero_grad()
+                pred, true = self._process_one_batch(
+                    train_data, batch_x, batch_y, batch_x_mark, batch_y_mark)
+                loss = criterion(pred, true)
+                train_loss.append(loss.item())
+                
+                if (i+1) % 100==0:
+                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
+                    speed = (time.time()-time_now)/iter_count
+                    left_time = speed*((self.args.train_epochs - epoch)*train_steps - i)
+                    print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
+                    iter_count = 0
+                    time_now = time.time()
+                
+                if self.args.use_amp:
+                    scaler.scale(loss).backward()
+                    scaler.step(model_optim)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    model_optim.step()
+
+            print("Epoch: {} cost time: {}".format(epoch+1, time.time()-epoch_time))
+            train_loss = np.average(train_loss)
+            vali_loss = self.vali(vali_data, vali_loader, criterion)
+            test_loss = self.vali(test_data, test_loader, criterion)
+
+            print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f}".format(
+                epoch + 1, train_steps, train_loss, vali_loss, test_loss))
+            early_stopping(vali_loss, self.model, path)
+            if early_stopping.early_stop:
+                print("Early stopping")
+                break
+
+            adjust_learning_rate(model_optim, epoch+1, self.args)
+            
+        best_model_path = path+'/'+'checkpoint.pth'
+        self.model.load_state_dict(torch.load(best_model_path))
+        
+        return self.model
 
     def test(self, setting):
         test_data, test_loader = self._get_data(flag='test')
