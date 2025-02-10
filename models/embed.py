@@ -5,7 +5,7 @@ import math
 import numpy as np
 
 class TokenEmbedding(nn.Module):
-    def __init__(self, c_in, d_model, tao=1, m=1, pad=True, is_split=False):
+    def __init__(self, c_in, d_model, tao=1, m=2, pad=True, is_split=False):
         super(TokenEmbedding, self).__init__()
         self.tao = tao
         self.m = m
@@ -109,7 +109,7 @@ class TokenEmbedding(nn.Module):
                     channel_splitter.append(leftout_out)
     
             # Concatenate and transpose back
-            x_embedded = torch.cat(channel_splitter, dim=1).transpose(1, 2)
+            x_embedded = torch.cat(channel_splitter, dim=2).transpose(1, 2)
 
         else:
             x_embedded = self.total_conv(x_embedded.permute(0,2,1)).transpose(1,2)
@@ -191,7 +191,7 @@ class DataEmbedding(nn.Module):
         dropout: dropout rate.
         """
         super(DataEmbedding, self).__init__()
-        self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model, m=1, tao=1)
+        self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model, m=2, tao=1)
         self.position_embedding = PositionalEmbedding(d_model=d_model)
         print('Hey_this_is_our_code', flush=True)
         if embed_type != 'timeF':
