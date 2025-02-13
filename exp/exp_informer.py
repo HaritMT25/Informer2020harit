@@ -141,10 +141,7 @@ class Exp_Informer(Exp_Basic):
 
         if self.args.use_amp:
             scaler = torch.cuda.amp.GradScaler()
-            
-        train_losses = []
-        vali_losses = []
-        
+
         for epoch in range(self.args.train_epochs):
             iter_count = 0
             train_loss = []
@@ -180,8 +177,6 @@ class Exp_Informer(Exp_Basic):
             train_loss = np.average(train_loss)
             vali_loss = self.vali(vali_data, vali_loader, criterion)
             test_loss = self.vali(test_data, test_loader, criterion)
-            train_losses.append(train_loss)
-            vali_losses.append(vali_loss)
 
             print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f}".format(
                 epoch + 1, train_steps, train_loss, vali_loss, test_loss))
@@ -195,7 +190,7 @@ class Exp_Informer(Exp_Basic):
         best_model_path = path+'/'+'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
         
-        return self.model, train_losses, vali_losses
+        return self.model
 
     def test(self, setting):
         test_data, test_loader = self._get_data(flag='test')
